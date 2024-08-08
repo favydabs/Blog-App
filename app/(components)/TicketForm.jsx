@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const TicketForm = () => {
+const TicketForm = ({ ticket }) => {
+  const EditMode = ticket._id === "new" ? false : true;
 
   const router = useRouter();
 
@@ -17,17 +18,32 @@ const TicketForm = () => {
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await fetch("/api/Tickets", {
-      method: "POST",
-      body: JSON.stringify({ formData }),
-      "content-type": "application/json",
-    })
+    setLoading(true);
+    if (EditMode) {
+      const res = await fetch(`/api/Tickets/${ticket._id}`, {
+        method: "PUT",
+        body: JSON.stringify({ formData }),
+        "content-type": "application/json",
+      });
 
-    if (!res.ok) {
-      throw new Error("failed to create Ticket.");
+      if (!res.ok) {
+        throw new Error("failed to update Ticket.");
+      }
+    } else {
+      const res = await fetch("/api/Tickets", {
+        method: "POST",
+        body: JSON.stringify({ formData }),
+        "content-type": "application/json",
+      });
+
+      if (!res.ok) {
+        throw new Error("failed to create Ticket.");
+      }
     }
-    router.refresh()
-    router.push("/")
+
+    router.refresh();
+    router.push("/");
+    setLoading(false);
   };
 
   const startingTicketData = {
@@ -38,8 +54,18 @@ const TicketForm = () => {
     status: "not started",
     category: "Hardware problem",
   };
-  const [formData, setFormData] = useState(startingTicketData);
 
+  if (EditMode) {
+    startingTicketData["title"] = ticket.title;
+    startingTicketData["description"] = ticket.description;
+    startingTicketData["priority"] = ticket.priority;
+    startingTicketData["progress"] = ticket.progress;
+    startingTicketData["status"] = ticket.status;
+    startingTicketData["category"] = ticket.category;
+  }
+
+  const [formData, setFormData] = useState(startingTicketData);
+  const [loading, setLoading] = useState(false);
   return (
     <div className="flex justify-center">
       <form
@@ -47,7 +73,7 @@ const TicketForm = () => {
         method="post"
         onSubmit={handleSubmit}
       >
-        <h3>Create Your Ticket</h3>
+        <h3>{EditMode ? "Update your Ticket" : "Create Your Ticket"}</h3>
         <label>Title</label>
         <input
           id="title"
@@ -78,52 +104,19 @@ const TicketForm = () => {
         </select>
         <label>Priority</label>
         <div>
-          <input
-            id="priority-1"
-            name="priority"
-            type="radio"
-            onChange={handleChange}
-            value={1}
-            checked={formData.priority == 1}
-          />
-          <label>1</label>
-          <input
-            id="priority-2"
-            name="priority"
-            type="radio"
-            onChange={handleChange}
-            value={2}
-            checked={formData.priority == 2}
-          />
-          <label>2</label>
-          <input
-            id="priority-3"
-            name="priority"
-            type="radio"
-            onChange={handleChange}
-            value={3}
-            checked={formData.priority == 3}
-          />
-          <label>3</label>
-          <input
-            id="priority-4"
-            name="priority"
-            type="radio"
-            onChange={handleChange}
-            value={4}
-            checked={formData.priority == 4}
-          />
-
-          <label>4</label>
-          <input
-            id="priority-5"
-            name="priority"
-            type="radio"
-            onChange={handleChange}
-            value={5}
-            checked={formData.priority == 5}
-          />
-          <label>5</label>
+        {[1, 2, 3, 4, 5].map((level) => (
+            <React.Fragment key={level}>
+              <input
+                id={`priority-${level}`}
+                name="priority"
+                type="radio"
+                onChange={handleChange}
+                value={level}
+                checked={formData.priority == level}
+              />
+              <label>{level}</label>
+            </React.Fragment>
+          ))}
         </div>
         <label>Progress</label>
         <input
@@ -141,7 +134,20 @@ const TicketForm = () => {
           <option value=" started"> Started</option>
           <option value="done"> Done</option>
         </select>
-        <input type="submit" className="btn" value="Create Ticket" />
+        <input
+          type="submit"
+          className="btn"
+          value={
+            loading
+              ? EditMode
+                ? "Updating..."
+                : "Creating..."
+              : EditMode
+              ? "Update Your Ticket"
+              : "Create Ticket"
+          }
+          disabled={loading}
+        />
       </form>
     </div>
   );
